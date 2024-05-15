@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download YouTube Audio</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 50px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #status {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Download YouTube Audio</h1>
+        <form id="download-form">
+            <div class="form-group">
+                <label for="url">YouTube Video URL:</label>
+                <input type="text" class="form-control" id="url" name="url" placeholder="Enter YouTube video URL" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Download Audio</button>
+        </form>
+        <div id="status" class="text-center"></div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.getElementById('download-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const url = document.getElementById('url').value;
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = 'Downloading...';
+            statusDiv.className = 'alert alert-info';
+
+            fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.textContent = 'Download is being processed...';
+                    statusDiv.className = 'alert alert-info';
+
+                    const checkStatus = async () => {
+                        const response = await fetch(`/status/${data.jobId}`);
+                        const result = await response.json();
+
+                        if (result.status === 'completed') {
+                            const a = document.createElement('a');
+                            a.href = result.data.downloadUrl;
+                            a.download = result.data.filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            statusDiv.textContent = 'Download successful!';
+                            statusDiv.className = 'alert alert-success';
+                        } else if (result.status === 'failed') {
+                            statusDiv.textContent = 'Error: ' + result.data.message;
+                            statusDiv.className = 'alert alert-danger';
+                        } else {
+                            setTimeout(checkStatus, 1000);
+                        }
+                    };
+
+                    checkStatus();
+                } else {
+                    statusDiv.textContent = 'Error: ' + data.message;
+                    statusDiv.className = 'alert alert-danger';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.textContent = 'An error occurred while trying to download the audio.';
+                statusDiv.className = 'alert alert-danger';
+            });
+        });
+    </script>
+</body>
+</html>
